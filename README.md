@@ -1,6 +1,47 @@
 # amro_malek_repo
 
+```rust
+use std::{collections::HashMap, sync::Arc};
+use tao::window::{Window, WindowId};
+use wry::WebView;
+use crate::{pipeevents::PythonEvent, pythonpipe::PythonCommands, rustpipe::RustCommands, utils::arc_mut};
 
+#[allow(dead_code)]
+pub(crate) async fn tcp_webview_connections(
+    frompython: Arc<PythonCommands>, 
+    fromrust: Arc<RustCommands>,
+    webviews: &mut HashMap<WindowId, (Window, WebView)>,  // Change the key to WindowId
+    id: WindowId
+) {
+    let _rust_engine = fromrust.clone();
+    let python_icomming_event = frompython.clone();
+    let webview_arc = arc_mut(webviews);
+
+    while let Some(event) = python_icomming_event.receive_event().await {
+        match event {
+            PythonEvent::SetTitle(title) => {
+                let mut webview_lock = webview_arc.lock().unwrap();
+                if let Some((window, _)) = webview_lock.get_mut(&id) {
+                    window.set_title(&title);
+                }
+            }
+            PythonEvent::EvaluateScript(script) => {
+                let mut webview_lock = webview_arc.lock().unwrap();
+                if let Some((_, webview)) = webview_lock.get_mut(&id) {
+                    if let Err(e) = webview.evaluate_script(&script) {
+                        eprintln!("Error evaluating script: {:?}", e);
+                    }
+                }
+            }
+            _ => {
+                eprintln!("Unhandled event: {:?}", event);
+            }
+        }
+    }
+}
+
+
+```
 ```rust
 
 
